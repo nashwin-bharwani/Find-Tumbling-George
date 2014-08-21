@@ -1,0 +1,272 @@
+#     F i n d  T u m b l i n g  G e o r g e  i n  a  C r o w d
+#
+#
+# This routine finds an exact match of George's face which may be
+# rotated in a crowd of tumbling (rotated) faces.
+#
+# 10/14/2013                               Nashwin Bharwani
+
+.data
+Array:  .alloc	1024
+
+.text
+
+FindGeorge:	addi	$1, $0, Array		# point to array base
+		swi	570			# generate tumbling crowd
+
+
+
+
+#Initialize the color we will be searching
+		ADDI $15, $0, 3
+
+
+
+#This block of code will search for a blue block in the array. If it is not found, then 
+ 		ADDI $1, $0, 0			
+LOOP:		ADDI $1, $1, 5			
+		LB $5, Array($1)		
+		BEQ $5, $15, HORIZONTAL		
+		J LOOP				
+
+
+#The following segment of code will start at a located blue pixel and shift values downwards until it reaches the last block or passes the border of
+#The program. The first two lines will initialize values which will be used later and the following lines will shift the pixel we will focus on.
+HORIZONTAL:	ADDI $22, $0, 0			
+		ADDI $21, $1, 0				
+	
+HORIZONTALLOOP:	SLTI $14, $21, 4096		
+		BEQ $14, $0, CHECKRIGHT		
+		LB $5, Array($21)		
+		BNE $15, $5, CHECKRIGHT		
+		ADDI $21, $21, 64		
+		J HORIZONTALLOOP
+
+
+
+#The following segment of code will start at a located blue pixel and shift values to the right until it reaches the last block. The goal of this part
+#is to 
+
+VERTICAL:	ADDI $15, $0, 3			
+		ADDI $22, $1, 0			
+		ADDI $14, $1, 7			
+VERTICALLOOP:	BEQ $14, $22, RETURN		
+		LB $5, Array($22)		
+		BNE $15, $5, CHECKUP		
+		ADDI $22, $22, 1		
+		J VERTICALLOOP
+	
+
+#The following segment will start at the end of a string of blue pixels and check upwards along the face to find critical points which can
+#Help identify Burdell. The points which will be searched for are detailed below. The first line of code shifts the back to the end of the string
+#of blue pixels since the loop before it leaves it one past the end of the line.
+CHECKUP:	ADDI $22, $22, -1		
+
+
+		#Check the boundaries of the code. The face cannot possibly be oriented up if there is not enough room above to show it.
+		SLTI  $14, $1, 704		
+		BNE   $14, $0, CHECKDOWN	
+
+		#Check the face for the black pixel in the corner of the smile
+		ADDI $21, $0, -320		
+		ADD  $16, $21, $22		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 8			
+		BNE  $15, $5, CHECKDOWN		
+
+		#Check underneath the eye for yellow skin to determine skin color and/or a lack of glasses
+		ADDI $16, $16, -64	
+		LB   $5, Array($16)		
+		ADDI $15, $0, 5			
+		BNE  $15, $5, CHECKDOWN		
+
+		#Check the eye color of the face to make sure it's green
+		ADDI $16, $16, -64	
+		LB   $5, Array($16)	
+		ADDI $15, $0, 7		
+		BNE  $15, $5, CHECKDOWN	
+
+		#Check to see the color of the details of the hat to make sure its white.
+		ADDI $16, $16, -128		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 1			
+		BNE  $15, $5, CHECKDOWN		
+
+		#Check to see the color and the style of the hat. The hat color should be red
+		ADDI $16, $16, -64		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 2			
+		BNE  $15, $5, CHECKDOWN		
+
+		#If all of the above checks have passed, Burdell has been identified
+		J FOUNDUP
+
+
+
+# The following segment will start at the end of a string of blue pixels and check downwards along the face to find critical points which can
+# Help identify Burdell. The points which will be searched for are detailed below. The first line of code shifts the back to the end of the string
+# of blue pixels since the loop before it leaves it one past the end of the line.
+
+		#Check and make sure that 
+CHECKDOWN:	SLTI $14, $1, 3392		
+		BEQ  $14, $0, RETURN		
+
+		#Check for the corner of Burdell's smile and make sure its black
+		ADDI $21, $0, 320		
+		ADD  $16, $21, $22		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 8			
+		BNE  $15, $5, RETURN		
+
+		#Check the space near Burdell's eye for skin color and glasses.
+		ADDI $16, $16, 64		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 5			
+		BNE  $15, $5, RETURN		
+
+		#Check the persons eye to see if it is green
+		ADDI $16, $16, 64		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 7			
+		BNE  $15, $5, RETURN		
+
+		#Check 
+		ADDI $16, $16, 128		#Shift down 2 pixels
+		LB   $5, Array($16)		#Load that pixel
+		ADDI $15, $0, 1			#The pixel we are looking for is white
+		BNE  $15, $5, RETURN		#If the pixel is not white, return to the loop
+
+		ADDI $16, $16, 64		#Shift down 1 pixel
+		LB   $5, Array($16)		#Load that pixel
+		ADDI $15, $0, 2			#We are looking for red
+		BNE  $15, $5, RETURN		#If the pixel is not red, return to the loop
+
+		J FOUNDDOWN			#If all of the above checks have passed, the face has been identified
+
+
+
+#In the following block, the code will shift back to the last blue pixel found, make sure that the face will not allow an overflow of data and
+#start trying to identify the face based off key features.
+
+		#Iterates Backwards to go to the last blue value
+CHECKRIGHT:	ADDI $21, $21, -64		
+		
+
+		#Make sure the array will not step out of bounds during the check
+		SLTI $14, $21, 4084		
+		BEQ  $14, $0, CHECKLEFT		
+
+
+		#Checks for the black mouth pixel	
+		ADDI $22, $0, 5				
+		ADD  $16, $21, $22		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 8		
+		BNE  $15, $5, CHECKLEFT		
+
+		#Checks for the skin color and whether or not there are glasses
+		ADDI $16, $16, 1		
+		LB  $5, Array($16)		
+		ADDI   $15, $0, 5		
+		BNE  $15, $5, CHECKLEFT		
+
+		#Checks for the eye color of the face
+		ADDI $16, $16, 1		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 7			
+		BNE  $15, $5, CHECKLEFT		
+
+		#Checks for the white detail in the hat	
+		ADDI $16, $16, 2		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 1			
+		BNE  $15, $5, CHECKLEFT		
+
+		#Checks for the red hat pixel and style
+		ADDI $16, $16, 1		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 2			
+		BNE  $15, $5, CHECKLEFT		
+		
+		#If all the above tests pass, the face has been identified
+		J FOUNDRIGHT			
+
+
+
+#In the following block of code, we identify the face if it is lying in the left direction. This is accompished by making sure that the value will not overflow
+#and identifies the face using key features.
+
+		#Prevents the face from being within 12 pixels of the left edge of the array so that it will not try to use a value out of bounds.
+CHECKLEFT:	SLTI $14, $21, 11		
+		BNE  $14, $0, VERTICAL		
+
+		#Checks for the black corner of the smile.
+		ADDI $22, $0, -5		
+		ADD  $16, $21, $22		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 8			
+		BNE  $15, $5, VERTICAL		
+
+		#Checks one pixel above for the yellow skin
+		ADDI $16, $16, -1		
+		LB  $5, Array($16)		
+		ADDI   $15, $0, 5		
+		BNE  $15, $5, VERTICAL		
+
+		#Checks one pixel above for the green eye
+		ADDI $16, $16, -1		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 7			
+		BNE  $15, $5, VERTICAL		
+
+		#Checks two pixels over for the white hat stripe
+		ADDI $16, $16, -2		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 1			
+		BNE  $15, $5, VERTICAL		
+
+		#Checks one pixel over for the red hat
+		ADDI $16, $16, -1		
+		LB   $5, Array($16)		
+		ADDI $15, $0, 2			
+		BNE  $15, $5, VERTICAL		
+		
+		#If all of these tests passed, the face has been identified in the left direction
+		J FOUNDLEFT			
+
+#If the face that was discovered is not Burdell, reset the value so that we search for the blue pixel.
+RETURN:		ADDI $15, $0, 3			
+		J LOOP 				
+
+#If the face is oriented in the right, shift to and stack the hat and shirt locations.
+FOUNDRIGHT:	ADDI $2, $21, -117	
+		SLL $2, $2, 16 		
+		ADD $2, $2, $21		
+		ADDI $2, $2, -128	
+		J ENDLOOP		
+
+#If the face is oriented in the left direction, shift to and stack the hat and shirt locations
+FOUNDLEFT:	ADDI $2, $21, -139	
+		SLL $2, $2, 16		
+		ADD $2, $2, $21		
+		ADDI $2, $2, -128	
+		J ENDLOOP		
+		
+#If the face is oriented upright, shift to and stack the hat and shirt locations
+FOUNDUP:	ADDI $2, $22, -706	
+		SLL $2, $2, 16		
+		ADD $2, $2, $22		
+		ADDI $2, $2, -2		
+		J ENDLOOP
+
+#If the face is oriented downwards, shift to and stack the hat and shirt locations
+FOUNDDOWN:	ADDI $2, $22, 702	
+		SLL $2, $2, 16		
+		ADD $2, $2, $22		
+		ADDI $2, $2, -2		
+		J ENDLOOP
+
+	
+#Return the answer
+ENDLOOP:	swi	571		
+		jr	$31		
